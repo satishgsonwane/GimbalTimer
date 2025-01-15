@@ -66,9 +66,9 @@ async def main():
         "gimbal_speed": gimbal_speed
     }
     print("Sending control message and starting timer...")
-    timer.start()
     await nc.publish(f"ptzcontrol.camera{cam_id}", json.dumps(control_msg).encode())
-    
+    timer.start()
+
     try:
         await asyncio.wait_for(target_reached.wait(), timeout=120.0)
         elapsed_time = timer.get_lapsed()
