@@ -247,6 +247,7 @@ cam_id,gimbal_speed,pan_setpoint
 3,8,-50
 3,8,50
 3,8,0
+4,1,0
 4,1,10
 4,1,0
 4,1,20
@@ -495,6 +496,7 @@ cam_id,gimbal_speed,pan_setpoint
 4,8,-50
 4,8,50
 4,8,0
+2,1,0
 2,1,10
 2,1,0
 2,1,20
