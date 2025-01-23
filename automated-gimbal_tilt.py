@@ -27,8 +27,8 @@ async def process_combination(nc, cam_id, gimbal_speed, pan_setpoint, tilt_setpo
                 pan_difference = abs(current_pan - pan_setpoint)
                 tilt_difference = abs(adjusted_current_tilt - tilt_setpoint)
                 
-                pan_reached = pan_difference <= 0.1
-                tilt_reached = tilt_difference <= 0.1
+                pan_reached = pan_difference <= 0.0999
+                tilt_reached = tilt_difference <= 0.0999
                 
                 if pan_reached and tilt_reached:
                     print(f"\nFinal position: Pan={current_pan:.3f}, Tilt={current_tilt:.3f}")
