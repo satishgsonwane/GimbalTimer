@@ -8,71 +8,63 @@ from timer import Timer
 BOLD = "\033[1m"
 RESET = "\033[0m"
 
-async def process_combination(nc, cam_id, gimbal_speed, pan_setpoint):
+async def process_combination(nc, cam_id, gimbal_speed, pan_setpoint, tilt_setpoint):
     timer = Timer()
     target_reached = asyncio.Event()
-    initial_position_reached = asyncio.Event()
+    pan_reached = False
+    tilt_reached = False
     
     async def message_handler(msg):
         try:
             data = json.loads(msg.data.decode())
+            nonlocal pan_reached, tilt_reached
             
-            if 'panposition' in data:
+            if 'panposition' in data and 'tiltposition' in data:
                 current_pan = float(data['panposition'])
-                if not initial_position_reached.is_set():
-                    # Check if we've reached initial position (0)
-                    difference = abs(current_pan - 0)
-                    if difference <= 0.1:
-                        print(f"\nReached initial position 0: {current_pan:.3f}")
-                        initial_position_reached.set()
-                    else:
-                        print(f"Moving to initial position 0. Current: {current_pan:.3f}", end='\r')
+                current_tilt = float(data['tiltposition'])
+                # Invert current tilt position for comparison if setpoint is positive
+                adjusted_current_tilt = -current_tilt if tilt_setpoint > 0 else current_tilt
+                pan_difference = abs(current_pan - pan_setpoint)
+                tilt_difference = abs(adjusted_current_tilt - tilt_setpoint)
+                
+                pan_reached = pan_difference <= 0.1
+                tilt_reached = tilt_difference <= 0.1
+                
+                if pan_reached and tilt_reached:
+                    print(f"\nFinal position: Pan={current_pan:.3f}, Tilt={current_tilt:.3f}")
+                    print(f"Final position Difference: Pan={pan_difference:.3f}, Tilt={tilt_difference:.3f}")
+                    print("Target position reached!")
+                    target_reached.set()
                 else:
-                    # Check for final target position
-                    difference = abs(current_pan - pan_setpoint)
-                    if difference <= 0.1:
-                        print(f"\nFinal position: {current_pan:.3f}, Final position Difference: {difference:.3f}")
-                        print("Target position reached!")
-                        target_reached.set()
-                    else:
-                        print(f"Current position: {current_pan:.3f}, Difference: {difference:.3f}", end='\r')
+                    print(f"Current position: Pan={current_pan:.3f}, Tilt={current_tilt:.3f}, " 
+                          f"Difference: Pan={pan_difference:.3f}, Tilt={tilt_difference:.3f}", end='\r')
             
         except (json.JSONDecodeError, ValueError) as e:
             print(f"Error processing message: {e}")
     
     subscription = await nc.subscribe(f"ptzinfo.camera{cam_id}", cb=message_handler)
     print("="*80)
-    print(f"Testing: Camera {cam_id}, Speed {gimbal_speed}, Pan {pan_setpoint}")
+    print(f"Testing: Camera {cam_id}, Speed {gimbal_speed}, Pan {pan_setpoint}, Tilt {tilt_setpoint}")
     print(f"Subscribed to ptzinfo.camera{cam_id}")
     
-    # First move to position 0
-    initial_control_msg = {
-        "pansetpoint": 0,
+    # Invert positive tilt values to negative
+    adjusted_tilt = -tilt_setpoint if tilt_setpoint > 0 else tilt_setpoint
+    control_msg = {
+        "pansetpoint": pan_setpoint,
+        "tiltsetpoint": adjusted_tilt,
         "gimbal_speed": gimbal_speed
     }
-    print("Moving to initial position 0...")
-    await nc.publish(f"ptzcontrol.camera{cam_id}", json.dumps(initial_control_msg).encode())
-    
-    try:
-        # Wait for initial position to be reached
-        await asyncio.wait_for(initial_position_reached.wait(), timeout=120.0)
-        print("Initial position 0 reached. Starting test to target position...")
-        
-        # Now move to actual target position
-        control_msg = {
-            "pansetpoint": pan_setpoint,
-            "gimbal_speed": gimbal_speed
-        }
-        print("Sending control message and starting timer...")
-        await nc.publish(f"ptzcontrol.camera{cam_id}", json.dumps(control_msg).encode())
-        timer.start()
+    print("Sending control message and starting timer...")
+    await nc.publish(f"ptzcontrol.camera{cam_id}", json.dumps(control_msg).encode())
+    timer.start()
 
-        await asyncio.wait_for(target_reached.wait(), timeout=120.0)
+    try:
+        await asyncio.wait_for(target_reached.wait(), timeout=20.0)
         elapsed_time = timer.get_lapsed() / 1000  # Convert to seconds
         print(f"Target reached in {BOLD}{elapsed_time:.2f} Seconds{RESET}")
         return elapsed_time
     except asyncio.TimeoutError:
-        print("\nTimeout: Target position not reached within 120 seconds")
+        print("\nTimeout: Target position not reached within 20 seconds")
         return None
     finally:
         timer.stop()
@@ -100,7 +92,8 @@ async def main():
                     nc,
                     int(row['cam_id']),
                     int(row['gimbal_speed']),
-                    float(row['pan_setpoint'])
+                    float(row['pan_setpoint']),
+                    float(row['tilt_setpoint'])
                 )
                 
                 # Update the DataFrame with the execution time
