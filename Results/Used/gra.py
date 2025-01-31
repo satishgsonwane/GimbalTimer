@@ -63,17 +63,17 @@ data_new = {
 df_new = pd.DataFrame(data_new).set_index("pan")
 
 # Plotting the data
-plt.figure(figsize=(12, 6))
-for col in df_new.columns:
-    plt.plot(df_new.index, df_new[col], marker='o', label=f'Column {col}')
+# plt.figure(figsize=(12, 6))
+# for col in df_new.columns:
+#     plt.plot(df_new.index, df_new[col], marker='o', label=f'Column {col}')
 
-plt.gca().invert_xaxis()  # Match the decreasing pan values
-plt.title("Values vs Pan Settings for Each Column (New Data)")
-plt.xlabel("Pan")
-plt.ylabel("Values")
-plt.legend(title="Gimbal_Speed", loc="upper left")
-plt.grid(True)
-plt.show()
+# plt.gca().invert_xaxis()  # Match the decreasing pan values
+# plt.title("Values vs Pan Settings for Each Column (New Data)")
+# plt.xlabel("Pan")
+# plt.ylabel("Values")
+# plt.legend(title="Gimbal_Speed", loc="upper left")
+# plt.grid(True)
+# plt.show()
 
 # Original data
 original_pan = [100, 30, 20, 10]
